@@ -1,0 +1,148 @@
+You are given a 2D integer array squares. Each squares[i] = [xi, yi, li] represents the coordinates of the bottom-left point and the side length of a square parallel to the x-axis.
+Find the minimum y-coordinate value of a horizontal line such that the total area covered by squares above the line equals the total area covered by squares below the line.
+Answers within 10⁻⁵ of the actual answer will be accepted.Squares may overlap. Overlapping areas should be counted only once in this version.
+Example 1:
+Input:
+squares = [[0,0,1],[2,2,1]]
+Output:
+1.00000
+Example 2:
+Input:
+squares = [[0,0,2],[1,1,1]]
+Output:
+1.00000
+
+Time Complexity:
+O(N log N) – due to sweep line and segment tree operations.
+Space Complexity:
+O(N) – for events, coordinate compression, and segment tree
+
+
+import java.util.*;
+public class Solution {
+
+    static class Event {
+        long y;
+        int x1, x2;
+        int type; // +1 add, -1 remove
+        Event(long y, int x1, int x2, int type) {
+            this.y = y;
+            this.x1 = x1;
+            this.x2 = x2;
+            this.type = type;
+        }
+    }
+
+    static class SegmentTree {
+        int n;
+        int[] count;
+        long[] length;
+        long[] xs;
+
+        SegmentTree(long[] xs) {
+            this.xs = xs;
+            this.n = xs.length - 1;
+            count = new int[4 * n];
+            length = new long[4 * n];
+        }
+
+        void update(int node, int l, int r, int ql, int qr, int val) {
+            if (qr <= l || r <= ql) return;
+            if (ql <= l && r <= qr) {
+                count[node] += val;
+            } else {
+                int mid = (l + r) / 2;
+                update(node * 2, l, mid, ql, qr, val);
+                update(node * 2 + 1, mid, r, ql, qr, val);
+            }
+
+            if (count[node] > 0) {
+                length[node] = xs[r] - xs[l];
+            } else {
+                if (l + 1 == r) length[node] = 0;
+                else length[node] = length[node * 2] + length[node * 2 + 1];
+            }
+        }
+
+        void update(int l, int r, int val) {
+            update(1, 0, n, l, r, val);
+        }
+
+        long query() {
+            return length[1];
+        }
+    }
+
+    public double separateSquares(int[][] squares) {
+        int n = squares.length;
+
+        List<Long> xList = new ArrayList<>();
+        List<Event> events = new ArrayList<>();
+
+        for (int[] s : squares) {
+            long x = s[0], y = s[1], l = s[2];
+            xList.add(x);
+            xList.add(x + l);
+        }
+
+        Collections.sort(xList);
+        Map<Long, Integer> map = new HashMap<>();
+        int idx = 0;
+        for (long v : xList) {
+            if (!map.containsKey(v)) map.put(v, idx++);
+        }
+
+        long[] xs = new long[map.size()];
+        for (Map.Entry<Long, Integer> e : map.entrySet()) {
+            xs[e.getValue()] = e.getKey();
+        }
+        Arrays.sort(xs);
+
+        for (int[] s : squares) {
+            long x = s[0], y = s[1], l = s[2];
+            int x1 = map.get(x);
+            int x2 = map.get(x + l);
+            events.add(new Event(y, x1, x2, 1));
+            events.add(new Event(y + l, x1, x2, -1));
+        }
+
+        events.sort(Comparator.comparingLong(a -> a.y));
+        SegmentTree st = new SegmentTree(xs);
+
+        List<long[]> strips = new ArrayList<>();
+        long prevY = events.get(0).y;
+        long area = 0;
+
+        int i = 0;
+        while (i < events.size()) {
+            long curY = events.get(i).y;
+            long dy = curY - prevY;
+            long coverLen = st.query();
+
+            if (dy > 0 && coverLen > 0) {
+                strips.add(new long[]{prevY, curY, coverLen, area});
+                area += dy * coverLen;
+            }
+
+            while (i < events.size() && events.get(i).y == curY) {
+                Event e = events.get(i);
+                st.update(e.x1, e.x2, e.type);
+                i++;
+            }
+            prevY = curY;
+        }
+
+        double half = area / 2.0;
+
+        for (long[] s : strips) {
+            long y1 = s[0], y2 = s[1], width = s[2], pref = s[3];
+            long blockArea = (y2 - y1) * width;
+
+            if (pref + blockArea >= half) {
+                return y1 + (half - pref) / width;
+            }
+        }
+
+        return 0.0;
+    }
+}
