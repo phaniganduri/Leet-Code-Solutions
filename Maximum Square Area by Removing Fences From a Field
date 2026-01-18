@@ -18,23 +18,40 @@ Constraints:
 1 < vFences[i] < n
 hFences and vFences are unique.
 
+package com.solutions;
 import java.util.*;
+public class MaximizeSquareArea {
+    public static void main(String[] args) {
+        // Example 1
+        int m1 = 4, n1 = 3;
+        int[] hFences1 = {2, 3};
+        int[] vFences1 = {2};
+        System.out.println("Output 1: " + maximizeSquareArea(m1, n1, hFences1, vFences1)); // 4
 
-class Solution {
-    public int maximizeSquareArea(int m, int n, int[] hFences, int[] vFences) {
+        // Example 2
+        int m2 = 6, n2 = 7;
+        int[] hFences2 = {2};
+        int[] vFences2 = {4};
+        System.out.println("Output 2: " + maximizeSquareArea(m2, n2, hFences2, vFences2)); // -1
+    }
+    public static int maximizeSquareArea(int m, int n, int[] hFences, int[] vFences) {
+
         final long MOD = 1_000_000_007;
-
-        // Step 1: Add boundaries
+        // Step 1: Add boundary fences
         int[] h = new int[hFences.length + 2];
         int[] v = new int[vFences.length + 2];
 
         h[0] = 1;
         h[h.length - 1] = m;
-        for (int i = 0; i < hFences.length; i++) h[i + 1] = hFences[i];
+        for (int i = 0; i < hFences.length; i++) {
+            h[i + 1] = hFences[i];
+        }
 
         v[0] = 1;
         v[v.length - 1] = n;
-        for (int i = 0; i < vFences.length; i++) v[i + 1] = vFences[i];
+        for (int i = 0; i < vFences.length; i++) {
+            v[i + 1] = vFences[i];
+        }
 
         Arrays.sort(h);
         Arrays.sort(v);
@@ -64,3 +81,4 @@ class Solution {
         return (int) area;
     }
 }
+
