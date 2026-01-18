@@ -18,14 +18,17 @@ Space Complexity:
 O(N) – for events, coordinate compression, and segment tree
 
 
-import java.util.*;
-public class Solution {
 
+package com.solutions;
+import java.util.*;
+public class SeperateSquaresII {
+    // ---------- EVENT CLASS ----------
     static class Event {
-        long y;
-        int x1, x2;
-        int type; // +1 add, -1 remove
-        Event(long y, int x1, int x2, int type) {
+        double y;
+        double x1, x2;
+        int type; // +1 = add, -1 = remove
+
+        Event(double y, double x1, double x2, int type) {
             this.y = y;
             this.x1 = x1;
             this.x2 = x2;
@@ -33,116 +36,126 @@ public class Solution {
         }
     }
 
+    // ---------- SEGMENT TREE ----------
     static class SegmentTree {
         int n;
+        double[] xs;
         int[] count;
-        long[] length;
-        long[] xs;
+        double[] length;
 
-        SegmentTree(long[] xs) {
+        SegmentTree(double[] xs) {
             this.xs = xs;
             this.n = xs.length - 1;
             count = new int[4 * n];
-            length = new long[4 * n];
+            length = new double[4 * n];
         }
 
         void update(int node, int l, int r, int ql, int qr, int val) {
-            if (qr <= l || r <= ql) return;
+            if (ql > r || qr < l) return;
+
             if (ql <= l && r <= qr) {
                 count[node] += val;
             } else {
                 int mid = (l + r) / 2;
                 update(node * 2, l, mid, ql, qr, val);
-                update(node * 2 + 1, mid, r, ql, qr, val);
+                update(node * 2 + 1, mid + 1, r, ql, qr, val);
             }
 
             if (count[node] > 0) {
-                length[node] = xs[r] - xs[l];
+                length[node] = xs[r + 1] - xs[l];
+            } else if (l == r) {
+                length[node] = 0;
             } else {
-                if (l + 1 == r) length[node] = 0;
-                else length[node] = length[node * 2] + length[node * 2 + 1];
+                length[node] = length[node * 2] + length[node * 2 + 1];
             }
         }
 
-        void update(int l, int r, int val) {
-            update(1, 0, n, l, r, val);
-        }
-
-        long query() {
+        double queryTotalLength() {
             return length[1];
         }
     }
 
-    public double separateSquares(int[][] squares) {
-        int n = squares.length;
+    // ---------- MAIN FUNCTION ----------
+    public static void main(String[] args) {
 
-        List<Long> xList = new ArrayList<>();
+        int[][] squares1 = {{0, 0, 1}, {2, 2, 1}};
+        int[][] squares2 = {{0, 0, 2}, {1, 1, 1}};
+
+        System.out.printf("Output 1: %.5f%n", separateSquares(squares1));
+        System.out.printf("Output 2: %.5f%n", separateSquares(squares2));
+    }
+
+    public static double separateSquares(int[][] squares) {
+
+        double low = 1e18, high = -1e18;
+        for (int[] s : squares) {
+            low = Math.min(low, s[1]);
+            high = Math.max(high, s[1] + s[2]);
+        }
+
+        double total = unionAreaUpTo(squares, high);
+        double target = total / 2.0;
+
+        for (int i = 0; i < 60; i++) {
+            double mid = (low + high) / 2;
+            if (unionAreaUpTo(squares, mid) < target) low = mid;
+            else high = mid;
+        }
+
+        return low;
+    }
+
+    // ---------- UNION AREA BELOW Y ----------
+    static double unionAreaUpTo(int[][] squares, double limitY) {
+
         List<Event> events = new ArrayList<>();
+        Set<Double> xSet = new HashSet<>();
 
         for (int[] s : squares) {
-            long x = s[0], y = s[1], l = s[2];
-            xList.add(x);
-            xList.add(x + l);
+            double x1 = s[0];
+            double y1 = s[1];
+            double l = s[2];
+            double x2 = x1 + l;
+            double y2 = y1 + l;
+
+            if (y1 >= limitY) continue;
+
+            double bottom = y1;
+            double top = Math.min(y2, limitY);
+
+            events.add(new Event(bottom, x1, x2, 1));
+            events.add(new Event(top, x1, x2, -1));
+
+            xSet.add(x1);
+            xSet.add(x2);
         }
 
-        Collections.sort(xList);
-        Map<Long, Integer> map = new HashMap<>();
-        int idx = 0;
-        for (long v : xList) {
-            if (!map.containsKey(v)) map.put(v, idx++);
-        }
+        if (events.isEmpty()) return 0;
 
-        long[] xs = new long[map.size()];
-        for (Map.Entry<Long, Integer> e : map.entrySet()) {
-            xs[e.getValue()] = e.getKey();
-        }
-        Arrays.sort(xs);
+        double[] xs = xSet.stream().sorted().mapToDouble(Double::doubleValue).toArray();
+        Map<Double, Integer> map = new HashMap<>();
+        for (int i = 0; i < xs.length; i++) map.put(xs[i], i);
 
-        for (int[] s : squares) {
-            long x = s[0], y = s[1], l = s[2];
-            int x1 = map.get(x);
-            int x2 = map.get(x + l);
-            events.add(new Event(y, x1, x2, 1));
-            events.add(new Event(y + l, x1, x2, -1));
-        }
+        events.sort(Comparator.comparingDouble(e -> e.y));
 
-        events.sort(Comparator.comparingLong(a -> a.y));
         SegmentTree st = new SegmentTree(xs);
 
-        List<long[]> strips = new ArrayList<>();
-        long prevY = events.get(0).y;
-        long area = 0;
+        double area = 0;
+        double prevY = events.get(0).y;
 
-        int i = 0;
-        while (i < events.size()) {
-            long curY = events.get(i).y;
-            long dy = curY - prevY;
-            long coverLen = st.query();
+        for (Event e : events) {
+            double curY = e.y;
+            double coveredX = st.queryTotalLength();
+            area += coveredX * (curY - prevY);
 
-            if (dy > 0 && coverLen > 0) {
-                strips.add(new long[]{prevY, curY, coverLen, area});
-                area += dy * coverLen;
-            }
+            int l = map.get(e.x1);
+            int r = map.get(e.x2) - 1;
+            if (l <= r)
+                st.update(1, 0, st.n - 1, l, r, e.type);
 
-            while (i < events.size() && events.get(i).y == curY) {
-                Event e = events.get(i);
-                st.update(e.x1, e.x2, e.type);
-                i++;
-            }
             prevY = curY;
         }
 
-        double half = area / 2.0;
-
-        for (long[] s : strips) {
-            long y1 = s[0], y2 = s[1], width = s[2], pref = s[3];
-            long blockArea = (y2 - y1) * width;
-
-            if (pref + blockArea >= half) {
-                return y1 + (half - pref) / width;
-            }
-        }
-
-        return 0.0;
+        return area;
     }
 }
