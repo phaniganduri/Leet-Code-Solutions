@@ -29,35 +29,57 @@ Approach:
 Time Complexity: O(n log precision)
 Space Complexity: O(1)
 
+package com.solutions;
+public class SeperateSquares {
+    public static void main(String[] args) {
+        // Example 1
+        int[][] squares1 = {{0, 0, 1}, {2, 2, 1}};
+        System.out.printf("Output 1: %.5f%n", separateSquares(squares1));
+        // Example 2
+        int[][] squares2 = {{0, 0, 2}, {1, 1, 1}};
+        System.out.printf("Output 2: %.5f%n", separateSquares(squares2));
+    }
+    public static double separateSquares(int[][] squares) {
 
-class Solution {
-    public double separateSquares(int[][] squares) {
-        double total = 0;
-        double low = Double.MAX_VALUE, high = Double.MIN_VALUE;
-
+        double totalArea = 0;
+        double low = Double.MAX_VALUE;
+        double high = Double.MIN_VALUE;
+        // Find total area and y-range
         for (int[] s : squares) {
-            total += 1.0 * s[2] * s[2];
+            double side = s[2];
+            totalArea += side * side;
             low = Math.min(low, s[1]);
             high = Math.max(high, s[1] + s[2]);
         }
 
-        double target = total / 2.0;
-
-        for (int i = 0; i < 70; i++) {
-            double mid = (low + high) / 2;
-            if (areaBelow(mid, squares) < target) low = mid;
-            else high = mid;
+        double target = totalArea / 2.0;
+        // Binary search on y-coordinate
+        for (int i = 0; i < 70; i++) {   // enough for 1e-5 precision
+            double mid = (low + high) / 2.0;
+            if (areaBelow(mid, squares) < target) {
+                low = mid;
+            } else {
+                high = mid;
+            }
         }
         return low;
     }
+    // Calculate total area below horizontal line y
+    private static double areaBelow(double y, int[][] squares) {
 
-    private double areaBelow(double y, int[][] squares) {
         double area = 0;
+
         for (int[] s : squares) {
-            double base = s[1], len = s[2];
-            if (y <= base) continue;
-            else if (y >= base + len) area += len * len;
-            else area += len * (y - base);
+            double baseY = s[1];
+            double len = s[2];
+
+            if (y <= baseY) {
+                continue; // completely above the line
+            } else if (y >= baseY + len) {
+                area += len * len; // completely below the line
+            } else {
+                area += len * (y - baseY); // partially cut square
+            }
         }
         return area;
     }
