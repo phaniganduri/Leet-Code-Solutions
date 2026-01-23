@@ -1,0 +1,124 @@
+Given an array nums, you can perform the following operation any number of times:
+Select the adjacent pair with the minimum sum in nums. If multiple such pairs exist, choose the leftmost one.
+Replace the pair with their sum.
+Return the minimum number of operations needed to make the array non-decreasing.
+An array is said to be non-decreasing if each element is greater than or equal to its previous element (if it exists).
+Example 1:
+Input: nums = [5,2,3,1]
+Output: 2
+Explanation:
+The pair (3,1) has the minimum sum of 4. After replacement, nums = [5,2,4].
+The pair (2,4) has the minimum sum of 6. After replacement, nums = [5,6].
+The array nums became non-decreasing in two operations.
+Example 2:
+Input: nums = [1,2,2]
+Output: 0
+Explanation:
+The array nums is already sorted.
+Constraints:
+1 <= nums.length <= 105
+-109 <= nums[i] <= 109
+
+
+
+package com.solutions;
+import java.util.*;
+public class MinimumPairRemoval {
+    // Helper class to store pair sum and the left index
+    static class Pair {
+        long sum;
+        int left;
+        Pair(long sum, int left) {
+            this.sum = sum;
+            this.left = left;
+        }
+    }
+
+    public int minimumPairRemoval(int[] nums) {
+        int n = nums.length;
+        if (n <= 1) return 0;
+
+        // Using long to handle potential overflow (-10^9 to 10^9)
+        long[] val = new long[n];
+        for (int i = 0; i < n; i++) val[i] = nums[i];
+
+        // Simulation of Doubly Linked List using arrays for O(1) pointer updates
+        int[] next = new int[n];
+        int[] prev = new int[n];
+        for (int i = 0; i < n; i++) {
+            next[i] = i + 1;
+            prev[i] = i - 1;
+        }
+        next[n - 1] = -1;
+
+        // Priority Queue to always pick the minimum sum (and leftmost if tied)
+        PriorityQueue<Pair> pq = new PriorityQueue<>((a, b) -> {
+            if (a.sum != b.sum) return Long.compare(a.sum, b.sum);
+            return Integer.compare(a.left, b.left);
+        });
+
+        // outOfOrderCount tracks how many adjacent pairs are decreasing (val[i] > val[i+1])
+        int outOfOrderCount = 0;
+        for (int i = 0; i < n - 1; i++) {
+            pq.add(new Pair(val[i] + val[i + 1], i));
+            if (val[i] > val[i + 1]) {
+                outOfOrderCount++;
+            }
+        }
+
+        int operations = 0;
+        // The process continues until the array is non-decreasing (outOfOrderCount == 0)
+        while (outOfOrderCount > 0 && !pq.isEmpty()) {
+            Pair p = pq.poll();
+            int l = p.left;
+            int r = next[l];
+
+            // Validate: Skip if the pair is no longer adjacent (lazy update)
+            if (r == -1 || val[l] + val[r] != p.sum) continue;
+
+            // Step 1: Remove old out-of-order count for elements being modified
+            if (val[l] > val[r]) outOfOrderCount--;
+            int ll = prev[l];
+            int rr = next[r];
+            if (ll != -1 && val[ll] > val[l]) outOfOrderCount--;
+            if (rr != -1 && val[r] > val[rr]) outOfOrderCount--;
+
+            // Step 2: Merge the pair into the left index
+            val[l] = p.sum;
+            next[l] = rr;
+            if (rr != -1) prev[rr] = l;
+
+            // Step 3: Add new out-of-order count for new neighbors
+            if (ll != -1 && val[ll] > val[l]) outOfOrderCount++;
+            if (rr != -1 && val[l] > val[rr]) outOfOrderCount++;
+
+            // Step 4: Add new potential pairs to PQ
+            if (rr != -1) pq.add(new Pair(val[l] + val[rr], l));
+            if (ll != -1) pq.add(new Pair(val[ll] + val[l], ll));
+
+            operations++;
+        }
+
+        return operations;
+    }
+
+    public static void main(String[] args) {
+        MinimumPairRemoval sol = new MinimumPairRemoval();
+
+        // Testing Example 1
+        int[] nums1 = {5, 2, 3, 1};
+        printExample(1, nums1, sol.minimumPairRemoval(nums1.clone()));
+
+        // Testing Example 2
+        int[] nums2 = {1, 2, 2};
+        printExample(2, nums2, sol.minimumPairRemoval(nums2.clone()));
+    }
+
+    // Helper method to format output like the prompt
+    private static void printExample(int id, int[] input, int output) {
+        System.out.println("Example " + id + ":");
+        System.out.println("Input: nums = " + Arrays.toString(input));
+        System.out.println("Output: " + output);
+        System.out.println("---------------------------");
+    }
+}
