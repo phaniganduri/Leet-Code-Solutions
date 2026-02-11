@@ -1,0 +1,136 @@
+You are given an integer array nums.A subarray is called balanced if the number of distinct even numbers in the subarray is equal to the number of distinct odd numbers.
+Return the length of the longest balanced subarray.
+Example 1:
+Input: nums = [2,5,4,3]
+Output: 4
+Explanation:
+The longest balanced subarray is [2, 5, 4, 3].
+It has 2 distinct even numbers [2, 4] and 2 distinct odd numbers [5, 3]. Thus, the answer is 4.
+Example 2:
+Input: nums = [3,2,2,5,4]
+Output: 5
+Explanation:
+The longest balanced subarray is [3, 2, 2, 5, 4].
+It has 2 distinct even numbers [2, 4] and 2 distinct odd numbers [3, 5]. Thus, the answer is 5.
+Example 3:
+Input: nums = [1,2,3,2]
+Output: 3
+Explanation:
+The longest balanced subarray is [2, 3, 2].
+It has 1 distinct even number [2] and 1 distinct odd number [3]. Thus, the answer is 3.
+Constraints:
+1 <= nums.length <= 105
+1 <= nums[i] <= 105
+
+
+import java.util.*;
+class Solution {
+    static class SegTree {
+        int n;
+        int[] mn, mx, lazy;
+        SegTree(int n) {
+            this.n = n;
+            mn = new int[4*n];
+            mx = new int[4*n];
+            lazy = new int[4*n];
+        }
+        void push(int v) {
+            if (lazy[v] != 0) {
+                apply(v*2, lazy[v]);
+                apply(v*2+1, lazy[v]);
+                lazy[v] = 0;
+            }
+        }
+        void apply(int v, int val) {
+            mn[v] += val;
+            mx[v] += val;
+            lazy[v] += val;
+        }
+        void update(int v, int l, int r, int ql, int qr, int val) {
+            if (ql > r || qr < l) return;
+            if (ql <= l && r <= qr) {
+                apply(v, val);
+                return;
+            }
+            push(v);
+            int mid = (l+r)/2;
+            update(v*2, l, mid, ql, qr, val);
+            update(v*2+1, mid+1, r, ql, qr, val);
+            mn[v] = Math.min(mn[v*2], mn[v*2+1]);
+            mx[v] = Math.max(mx[v*2], mx[v*2+1]);
+        }
+
+        // check if any index has value 0
+        boolean hasZero() {
+            return mn[1] <= 0 && mx[1] >= 0;
+        }
+        // find rightmost r >= L such that value[r] == 0
+        int findRightmostZero(int v, int l, int r, int L) {
+            if (r < L || !(mn[v] <= 0 && mx[v] >= 0)) return -1;
+            if (l == r) return l;
+            push(v);
+            int mid = (l+r)/2;
+            // try right side first (we want largest r)
+            int res = -1;
+            if (mid+1 <= r) {
+                res = findRightmostZero(v*2+1, mid+1, r, L);
+            }
+            if (res != -1) return res;
+
+            return findRightmostZero(v*2, l, mid, L);
+        }
+    }
+
+    public int longestBalanced(int[] nums) {
+        int n = nums.length;
+
+        // Store all positions of each value
+        List<Integer>[] pos = new ArrayList[100001];
+        for (int i = 0; i <= 100000; i++) pos[i] = new ArrayList<>();
+
+        for (int i = 0; i < n; i++) {
+            pos[nums[i]].add(i);
+        }
+
+        // pointers to current "first occurrence" for each value
+        int[] ptr = new int[100001];
+
+        SegTree st = new SegTree(n);
+
+        // Initialize contributions from first occurrences
+        for (int v = 1; v <= 100000; v++) {
+            if (!pos[v].isEmpty()) {
+                int p = pos[v].get(0);
+                int sign = (v % 2 == 1) ? +1 : -1;
+                st.update(1, 0, n-1, p, n-1, sign);
+            }
+        }
+
+        int ans = 0;
+
+        for (int l = 0; l < n; l++) {
+            // if current window [l..r] can be balanced, extend r
+            if (st.hasZero()) {
+                int r = st.findRightmostZero(1, 0, n-1, l);
+                if (r != -1) {
+                    ans = Math.max(ans, r - l + 1);
+                }
+            }
+
+            // Slide left pointer: remove nums[l]'s current contribution
+            int v = nums[l];
+            int curPos = pos[v].get(ptr[v]);
+
+            // move to next occurrence
+            ptr[v]++;
+            int next = (ptr[v] < pos[v].size()) ? pos[v].get(ptr[v]) : n;
+
+            int sign = (v % 2 == 1) ? +1 : -1;
+
+            // reverse its effect in [0..next-1]
+            st.update(1, 0, n-1, 0, next-1, -sign);
+        }
+
+        return ans;
+    }
+}
