@@ -1,0 +1,125 @@
+You are given a string s consisting only of the characters 'a', 'b', and 'c'.A substring of s is called balanced if all distinct characters in the substring appear the same number of times.
+Return the length of the longest balanced substring of s.
+Example 1:
+Input: s = "abbac"
+Output: 4
+Explanation:
+The longest balanced substring is "abba" because both distinct characters 'a' and 'b' each appear exactly 2 times.
+Example 2:
+Input: s = "aabcc"
+Output: 3
+Explanation:
+The longest balanced substring is "abc" because all distinct characters 'a', 'b' and 'c' each appear exactly 1 time.
+Example 3:
+Input: s = "aba"
+Output: 2
+Explanation:
+One of the longest balanced substrings is "ab" because both distinct characters 'a' and 'b' each appear exactly 1 time. Another longest balanced substring is "ba".
+Constraints:
+1 <= s.length <= 105
+s contains only the characters 'a', 'b', and 'c'.
+
+
+import java.util.*;
+class Solution {
+    public int longestBalanced(String s) {
+        int n = s.length();
+        int maxLen = 0;
+        char[] arr = s.toCharArray();
+
+        int currentRun = 0;
+        for (int i = 0; i < n; i++) {
+            if (i > 0 && arr[i] == arr[i - 1]) currentRun++;
+            else currentRun = 1;
+            if (currentRun > maxLen) maxLen = currentRun;
+        }
+        maxLen = Math.max(maxLen, solveForTwo(arr, 'a', 'b'));
+        maxLen = Math.max(maxLen, solveForTwo(arr, 'b', 'c'));
+        maxLen = Math.max(maxLen, solveForTwo(arr, 'a', 'c'));
+        maxLen = Math.max(maxLen, solveForThree(arr));
+
+        return maxLen;
+    }
+    private int solveForTwo(char[] s, char c1, char c2) {
+        int n = s.length;
+        int[] firstSeen = new int[2 * n + 1];
+        Arrays.fill(firstSeen, -2);
+        
+        int diff = 0;
+        int res = 0;
+        int startOfWindow = 0;
+        firstSeen[n] = -1;
+
+        for (int i = 0; i < n; i++) {
+            if (s[i] == c1) {
+                diff++;
+            } else if (s[i] == c2) {
+                diff--;
+            } else {
+                int tempDiff = 0;
+                for (int j = startOfWindow; j < i; j++) {
+                    if (s[j] == c1) tempDiff++;
+                    else if (s[j] == c2) tempDiff--;
+                    firstSeen[tempDiff + n] = -2;
+                }
+                startOfWindow = i + 1;
+                diff = 0;
+                firstSeen[n] = i; 
+                continue;
+            }
+
+            int idx = diff + n;
+            if (firstSeen[idx] >= startOfWindow - 1) {
+                res = Math.max(res, i - firstSeen[idx]);
+            } else {
+                firstSeen[idx] = i;
+            }
+        }
+        return res;
+    }
+    private int solveForThree(char[] s) {
+        int n = s.length;
+        int a = 0, b = 0, c = 0, res = 0;
+        
+        int size = 1 << 18; 
+        int mask = size - 1;
+        long[] keys = new long[size];
+        int[] values = new int[size];
+        boolean[] filled = new boolean[size];
+        
+        long startKey = 0L; 
+        int h = hash(startKey) & mask;
+        keys[h] = startKey;
+        values[h] = -1;
+        filled[h] = true;
+
+        for (int i = 0; i < n; i++) {
+            if (s[i] == 'a') a++;
+            else if (s[i] == 'b') b++;
+            else if (s[i] == 'c') c++;
+
+            long key = ((long)(a - b) << 32) | ((long)(b - c) & 0xFFFFFFFFL);
+            int pos = hash(key) & mask;
+            
+            while (filled[pos]) {
+                if (keys[pos] == key) {
+                    res = Math.max(res, i - values[pos]);
+                    break;
+                }
+                pos = (pos + 1) & mask;
+            }
+            
+            if (!filled[pos]) {
+                keys[pos] = key;
+                values[pos] = i;
+                filled[pos] = true;
+            }
+        }
+        return res;
+    }
+    private int hash(long x) {
+        x = (x ^ (x >>> 33)) * 0xff51afd7ed558ccdL;
+        x = (x ^ (x >>> 33)) * 0xc4ceb9fe1a85ec53L;
+        return (int)(x ^ (x >>> 33));
+    }
+}
